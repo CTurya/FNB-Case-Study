@@ -67,7 +67,6 @@ The interactive dashboard was built in Looker Studio to present the key findings
 * Price Elasticity of Demand
 * Year-over-Year Performance
 
-> *Insert your dashboard screenshot here.*
 
 ---
 
@@ -83,6 +82,13 @@ The dashboard includes the following business metrics:
 * Average Daily Sales
 
 ---
+## Methodology
+Unit economics: derived directly from the raw columns (Sales ÷ Quantity Sold, (Sales − Cost of Sales) ÷ Sales, etc.), with the average unit price calculated as a Rand-weighted average rather than a simple mean of daily prices.
+Promo detection: no promo flag exists in the data, so promotional periods were inferred statistically — days priced more than 1 standard deviation below a baseline are flagged, then grouped into runs using a gaps-and-islands technique.
+Validation: a second, independent detection method (rolling 14-day z-score, built in PySpark) was used to cross-check the selected periods rather than trusting a single pass. Two of three periods were confirmed directly; the third required manual judgment after the automated method missed it due to an outlier price spike skewing its local baseline — documented as an explicit limitation rather than hidden.
+Elasticity: PED = %Δ Quantity ÷ %Δ Price, comparing each promotional window to the 14 trading days immediately preceding it.
+
+----
 
 ## Key Findings
 
@@ -130,7 +136,14 @@ This project showcases the following analytical skills:
 This project demonstrates how SQL and Business Intelligence tools can be used together to transform raw sales data into actionable business insights. By combining data analysis, KPI development, and interactive visualisations, the project provides recommendations that support pricing strategy, promotional planning, and overall business performance.
 
 ---
+## Process
+This project followed a structured analysis workflow: framing data-driven questions → analysis planning → data exploration & quality checks → deeper analysis (SQL metrics) → feature engineering (rolling averages, promo flags) → promo detection & elasticity validation → building deliverables (Excel, PySpark, dashboards) → communicating findings. See gantt_chart.png and the notes/ folder for the full breakdown.
+Limitations
+Promotional periods are inferred statistically, not confirmed by an actual promo flag in the source data
+Price elasticity values in this dataset are notably higher than typical real-world retail elasticity — treated as a feature of this simulated dataset
+2013 and 2016 are partial years in the dataset; year-over-year comparisons are normalized to a per-trading-day basis to account for this.
 
+-------
 ## About Me
 
 I am an aspiring Data Analyst with a BCom in Information Management and experience in SQL, Databricks, Power BI, Looker Studio, Generative AI, and Excel. I enjoy transforming data into meaningful insights that help organisations make informed business decisions.
