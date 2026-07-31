@@ -1,4 +1,4 @@
-# 📊 Sales Performance Analysis Case Study
+# 📊FNB Sales Case Study
 
 ## Project Overview
 
