@@ -344,8 +344,20 @@ README.md
 │   ├── Dashboard Screenshots
 │   └── Final Presentation
 ```
-```
+---```
+## Repository Contents
 
+This repository contains the complete end-to-end analytics project, including:
+
+- Project planning documentation
+- SQL scripts and Databricks notebooks
+- Data cleaning and feature engineering
+- KPI calculations and business metrics
+- Dashboard screenshots
+- Looker Studio dashboard
+- Databricks dashboard
+- Final project presentation
+- Business recommendations
 ---
 
 ## Limitations
