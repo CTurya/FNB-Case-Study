@@ -26,10 +26,12 @@ SELECT
     Sales,
     `Cost Of Sales`,
     `Quantity Sold`,
-    Sales / `Quantity Sold`                          AS price_per_unit,      -- Q1: daily sales price per unit
+    Sales / `Quantity Sold`                          AS price_per_unit,      
+    -- Q1: daily sales price per unit
     `Cost Of Sales` / `Quantity Sold`                   AS cost_per_unit,
     (Sales - `Cost Of Sales`)                          AS gross_profit,
-    (Sales - `Cost Of Sales`) / Sales                  AS gross_profit_pct,  -- Q3: daily % gross profit
+    (Sales - `Cost Of Sales`) / Sales                  AS gross_profit_pct,  
+    -- Q3: daily % gross profit
     (Sales - `Cost Of Sales`) / `Quantity Sold`          AS gross_profit_per_unit,
     -- Q4: daily % gross profit per unit.
     -- Note: this simplifies to (Sales-`Cost Of Sales`)/Sales, i.e. identical to
