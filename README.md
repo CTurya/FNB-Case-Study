@@ -143,9 +143,243 @@ Promotional periods are inferred statistically, not confirmed by an actual promo
 Price elasticity values in this dataset are notably higher than typical real-world retail elasticity — treated as a feature of this simulated dataset
 2013 and 2016 are partial years in the dataset; year-over-year comparisons are normalized to a per-trading-day basis to account for this.
 
--------
+# FNB Sales Performance & Pricing Analysis
+
+## Project Overview
+
+This project analyses historical retail sales data to evaluate product performance, pricing strategy, profitability, and customer demand. Using SQL in Databricks, I developed key business metrics and analytical models to identify sales trends, promotional periods, and price elasticity of demand. The findings were presented through interactive dashboards created in Databricks and Looker Studio.
+
+The project demonstrates my ability to transform raw transactional data into meaningful business insights that support pricing, promotional planning, and operational decision-making.
+
+---
+
+## Business Objectives
+
+This analysis was designed to answer the following business questions:
+
+- What is the daily sales price per unit?
+- What is the average unit sales price?
+- What is the daily gross profit percentage?
+- What is the gross profit per unit?
+- Which promotional periods can be identified from the sales data?
+- How price-sensitive are customers during promotional periods?
+- Does promotional pricing improve sales performance?
+
+---
+
+## Tools & Technologies
+
+| Tool | Purpose |
+|--------|---------|
+| Databricks SQL | Data exploration and analysis |
+| Databricks Dashboards | KPI dashboard development |
+| Looker Studio | Interactive reporting |
+| Microsoft Excel | Data validation and calculations |
+| GitHub | Version control and portfolio |
+| Lovable | Dashboard presentation |
+| Miro | Project planning |
+| Canva | Documentation and presentation assets |
+
+---
+
+## SQL Techniques Demonstrated
+
+This project applies a range of SQL techniques, including:
+
+- Common Table Expressions (CTEs)
+- Window Functions
+- Aggregate Functions
+- Date Functions
+- CASE Statements
+- KPI Development
+- Gross Profit Calculations
+- Rolling Averages
+- Promotional Period Detection
+- Price Elasticity Analysis
+- Year-over-Year Performance Analysis
+
+---
+
+## Dashboard Overview
+
+The interactive dashboards provide business users with a clear view of sales performance and pricing behaviour.
+
+### Dashboard Components
+
+- Executive KPI Scorecards
+- Daily Sales Price per Unit
+- Daily Gross Profit Margin (%)
+- Gross Profit per Unit
+- Average Sales by Day of Week
+- Promotional Period Analysis
+- Price Elasticity of Demand
+- Year-over-Year Performance
+
+---
+
+## Key Performance Indicators
+
+The project measures the following business metrics:
+
+- Total Sales
+- Total Units Sold
+- Average Unit Sales Price
+- Gross Profit
+- Gross Profit Margin (%)
+- Average Daily Sales
+
+---
+
+## Methodology
+
+### Unit Economics
+
+Key financial metrics were derived directly from transactional sales data, including:
+
+- Sales Price per Unit = Sales ÷ Quantity Sold
+- Gross Profit = Sales − Cost of Sales
+- Gross Profit Margin = Gross Profit ÷ Sales
+
+The Average Unit Sales Price was calculated as a Rand-weighted average rather than a simple arithmetic mean to better reflect actual revenue contribution.
+
+### Promotional Period Detection
+
+The dataset did not contain a promotional flag. Promotional periods were therefore inferred statistically by:
+
+- Identifying prices more than one standard deviation below the baseline average.
+- Grouping consecutive qualifying dates using a gaps-and-islands approach.
+
+### Validation
+
+A second independent detection model using a rolling 14-day Z-score (implemented in PySpark) was used to validate the identified promotional periods.
+
+- Two promotional periods were confirmed automatically.
+- One required manual review because an extreme price outlier distorted the local baseline.
+
+This limitation is documented rather than concealed.
+
+### Price Elasticity
+
+Price Elasticity of Demand (PED) was calculated as:
+
+**PED = % Change in Quantity Sold ÷ % Change in Price**
+
+Each promotional period was compared against the previous 14 trading days.
+
+---
+
+## Key Findings
+
+The analysis produced several business insights:
+
+- Selling prices remained relatively stable across most of the analysis period.
+- Promotional pricing increased unit sales.
+- Gross profit margins declined during promotional campaigns.
+- Customer purchasing behaviour varied by day of the week.
+- Price Elasticity of Demand indicates customers respond positively to price reductions.
+
+---
+
+## Business Recommendations
+
+Based on the findings:
+
+- Continue targeted promotional campaigns during high-opportunity periods.
+- Monitor gross profit margins to balance volume growth with profitability.
+- Use elasticity insights to determine optimal discount levels.
+- Increase inventory ahead of promotional campaigns.
+- Continue monitoring pricing trends to optimise future promotions.
+
+---
+
+## Project Workflow
+
+The project followed a structured analytics lifecycle:
+
+1. Business Problem Definition
+2. Data Exploration
+3. Data Quality Assessment
+4. SQL Analysis
+5. Feature Engineering
+6. Promotional Period Detection
+7. Price Elasticity Validation
+8. Dashboard Development
+9. Business Insights & Recommendations
+
+Supporting documentation, planning artefacts, and the project timeline are included in the repository.
+
+---
+
+## Repository Structure
+
+```
+README.md
+
+├── 1. Project Description
+│   ├── Business Objectives
+│   ├── Project Overview
+│   ├── Tools & Technologies
+│   ├── Methodology
+│   ├── Key Findings
+│   ├── Business Recommendations
+│   └── Project Outcome
+│
+├── 2. Project Planning
+│   ├── Miro Planning Board
+│   ├── Project Workflow
+│   └── Gantt Chart
+│
+├── 3. Data Processing
+│   ├── SQL Scripts
+│   ├── Databricks Notebooks
+│   ├── Data Cleaning
+│   ├── Feature Engineering
+│   ├── KPI Calculations
+│   └── Validation
+│
+├── 4. Project Presentation & Visualisations
+│   ├── Databricks Dashboard
+│   ├── Looker Studio Dashboard
+│   ├── Excel Analysis
+│   ├── Dashboard Screenshots
+│   └── Final Presentation
+```
+```
+
+---
+
+## Limitations
+
+- Promotional periods were inferred statistically because no promotional flag existed in the source data.
+- Price Elasticity values are higher than typically observed in retail datasets and should be interpreted as characteristics of the simulated dataset.
+- The years 2013 and 2016 contain partial-year data; Year-over-Year comparisons were normalised on a per-trading-day basis.
+
+---
+
+## Skills Demonstrated
+
+This project highlights the following skills:
+
+- SQL Development
+- Data Cleaning
+- Exploratory Data Analysis (EDA)
+- KPI Development
+- Business Intelligence
+- Dashboard Design
+- Data Visualisation
+- Pricing Strategy Analysis
+- Business Storytelling
+- Decision Support
+- Statistical Analysis
+
+---
+
+## Project Outcome
+
+This project demonstrates how SQL, business intelligence, and statistical analysis can be combined to transform raw sales data into actionable business insights. The resulting dashboards and recommendations provide practical support for pricing strategy, promotional planning, and overall sales performance.
+
+---
+
 ## About Me
 
-I am an aspiring Data Analyst with a BCom in Information Management and experience in SQL, Databricks, Power BI, Looker Studio, Generative AI, and Excel. I enjoy transforming data into meaningful insights that help organisations make informed business decisions.
-
-
+I am an aspiring Data Analyst with a BCom in Information Management and hands-on experience in SQL, Databricks, Power BI, Looker Studio, Microsoft Excel, and Generative AI. I enjoy solving business problems with data by building analytical solutions that transform complex information into clear, actionable insights.
