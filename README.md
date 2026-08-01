@@ -345,6 +345,7 @@ README.md
 │   └── Final Presentation
 ```
 ---```
+
 ## Repository Contents
 
 This repository contains the complete end-to-end analytics project, including:
@@ -360,6 +361,7 @@ This repository contains the complete end-to-end analytics project, including:
 - Business recommendations
 ---
 
+
 ## Limitations
 
 - Promotional periods were inferred statistically because no promotional flag existed in the source data.
@@ -367,6 +369,7 @@ This repository contains the complete end-to-end analytics project, including:
 - The years 2013 and 2016 contain partial-year data; Year-over-Year comparisons were normalised on a per-trading-day basis.
 
 ---
+
 
 ## Skills Demonstrated
 
@@ -388,9 +391,11 @@ This project highlights the following skills:
 
 ## Project Outcome
 
+
 This project demonstrates how SQL, business intelligence, and statistical analysis can be combined to transform raw sales data into actionable business insights. The resulting dashboards and recommendations provide practical support for pricing strategy, promotional planning, and overall sales performance.
 
 ---
+
 
 ## About Me
 
