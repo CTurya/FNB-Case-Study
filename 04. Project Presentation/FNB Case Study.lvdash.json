@@ -1,0 +1,2310 @@
+{
+  "datasets": [
+    {
+      "name": "a11e159f",
+      "displayName": "Daily Sales Price Per Unit",
+      "queryLines": [
+        "-- Q1. DAILY SALES PRICE PER UNIT\n",
+        "-- Using inline calculation instead of view\n",
+        "SELECT\n",
+        "  `Date`,\n",
+        "  ROUND(Sales / `Quantity Sold`, 2) AS price_per_unit\n",
+        "FROM\n",
+        "  bright.sales.sales_case_study_\n",
+        "ORDER BY\n",
+        "  `Date`"
+      ]
+    },
+    {
+      "name": "6505eff0",
+      "displayName": "Sales Metrics Analysis",
+      "queryLines": [
+        "-- FNB Sales Case Study - All metrics using CTEs instead of views\n",
+        "WITH vw_sales_metrics AS (\n",
+        "  SELECT\n",
+        "    Date,\n",
+        "    Sales,\n",
+        "    `Cost Of Sales`,\n",
+        "    `Quantity Sold`,\n",
+        "    Sales / `Quantity Sold` AS price_per_unit,\n",
+        "    `Cost Of Sales` / `Quantity Sold` AS cost_per_unit,\n",
+        "    (Sales - `Cost Of Sales`) AS gross_profit,\n",
+        "    (Sales - `Cost Of Sales`) / Sales AS gross_profit_pct,\n",
+        "    (Sales - `Cost Of Sales`) / `Quantity Sold` AS gross_profit_per_unit,\n",
+        "    ((Sales - `Cost Of Sales`) / `Quantity Sold`)\n",
+        "      / (Sales / `Quantity Sold`) AS gross_profit_pct_per_unit\n",
+        "  FROM\n",
+        "    bright.sales.sales_case_study_\n",
+        "),\n",
+        "vw_price_stats AS (\n",
+        "  SELECT\n",
+        "    AVG(price_per_unit) AS mean_price,\n",
+        "    STDDEV(price_per_unit) AS sd_price\n",
+        "  FROM\n",
+        "    vw_sales_metrics\n",
+        "),\n",
+        "vw_low_price_days AS (\n",
+        "  SELECT\n",
+        "    m.`Date`,\n",
+        "    m.price_per_unit,\n",
+        "    m.`Quantity Sold`\n",
+        "  FROM\n",
+        "    vw_sales_metrics m CROSS JOIN vw_price_stats s\n",
+        "  WHERE\n",
+        "    m.price_per_unit < s.mean_price - s.sd_price\n",
+        "),\n",
+        "vw_promo_clusters AS (\n",
+        "  WITH ranked AS (\n",
+        "    SELECT\n",
+        "      `Date`,\n",
+        "      price_per_unit,\n",
+        "      `Quantity Sold`,\n",
+        "      ROW_NUMBER() OVER (ORDER BY `Date`) AS rn\n",
+        "    FROM\n",
+        "      vw_low_price_days\n",
+        "  ),\n",
+        "  grouped AS (\n",
+        "    SELECT\n",
+        "      *,\n",
+        "      DATE_SUB(`Date`, rn) AS grp\n",
+        "    FROM\n",
+        "      ranked\n",
+        "  )\n",
+        "  SELECT\n",
+        "    grp,\n",
+        "    MIN(`Date`) AS promo_start,\n",
+        "    MAX(`Date`) AS promo_end,\n",
+        "    COUNT(*) AS promo_days,\n",
+        "    AVG(price_per_unit) AS promo_avg_price,\n",
+        "    AVG(`Quantity Sold`) AS promo_avg_qty\n",
+        "  FROM\n",
+        "    grouped\n",
+        "  GROUP BY\n",
+        "    grp\n",
+        ")\n",
+        "-- Main query: all metrics combined\n",
+        "SELECT\n",
+        "  Date,\n",
+        "  ROUND(price_per_unit, 2) AS price_per_unit,\n",
+        "  ROUND(gross_profit_pct, 2) AS gross_profit_pct,\n",
+        "  ROUND(gross_profit_per_unit, 2) AS gross_profit_per_unit,\n",
+        "  ROUND(SUM(Sales) OVER () / SUM(`Quantity Sold`) OVER (), 2) AS avg_unit_sales_price,\n",
+        "  YEAR(Date) AS year,\n",
+        "  DATE_TRUNC('month', Date) AS month\n",
+        "FROM\n",
+        "  vw_sales_metrics\n",
+        "ORDER BY\n",
+        "  Date"
+      ]
+    },
+    {
+      "name": "annual_metrics",
+      "displayName": "Annual Metrics",
+      "queryLines": [
+        "-- Annual aggregated metrics\n",
+        "SELECT\n",
+        "  YEAR(`Date`) AS year,\n",
+        "  ROUND(SUM(Sales), 2) AS annual_sales,\n",
+        "  ROUND(SUM(`Quantity Sold`), 0) AS annual_qty,\n",
+        "  ROUND(SUM(Sales - `Cost Of Sales`), 2) AS annual_gross_profit,\n",
+        "  ROUND((SUM(Sales - `Cost Of Sales`) / SUM(Sales)) * 100, 2) AS annual_gp_pct\n",
+        "FROM\n",
+        "  bright.sales.sales_case_study_\n",
+        "GROUP BY\n",
+        "  YEAR(`Date`)\n",
+        "ORDER BY\n",
+        "  year"
+      ]
+    },
+    {
+      "name": "gross_profit_metrics",
+      "displayName": "Gross Profit Metrics",
+      "queryLines": [
+        "-- Daily gross profit metrics\n",
+        "SELECT\n",
+        "  `Date`,\n",
+        "  Sales,\n",
+        "  `Cost Of Sales`,\n",
+        "  `Quantity Sold`,\n",
+        "  ROUND((Sales - `Cost Of Sales`) / Sales * 100, 2) AS gross_profit_pct,\n",
+        "  ROUND((Sales - `Cost Of Sales`) / `Quantity Sold`, 2) AS gross_profit_per_unit,\n",
+        "  ROUND((Sales - `Cost Of Sales`), 2) AS gross_profit\n",
+        "FROM\n",
+        "  bright.sales.sales_case_study_\n",
+        "ORDER BY\n",
+        "  `Date`"
+      ]
+    },
+    {
+      "name": "average_price",
+      "displayName": "Average Unit Price",
+      "queryLines": [
+        "-- Average unit sales price (Rand-weighted)\n",
+        "SELECT\n",
+        "  ROUND(SUM(Sales) / SUM(`Quantity Sold`), 2) AS avg_unit_sales_price,\n",
+        "  ROUND(AVG(Sales / `Quantity Sold`), 2) AS avg_of_daily_prices\n",
+        "FROM\n",
+        "  bright.sales.sales_case_study_"
+      ]
+    },
+    {
+      "name": "monthly_trends",
+      "displayName": "Monthly Trends",
+      "queryLines": [
+        "-- Monthly aggregated metrics\n",
+        "SELECT\n",
+        "  DATE_TRUNC('month', `Date`) AS month,\n",
+        "  ROUND(SUM(Sales), 2) AS monthly_sales,\n",
+        "  ROUND(SUM(`Quantity Sold`), 0) AS monthly_qty,\n",
+        "  ROUND(SUM(Sales - `Cost Of Sales`), 2) AS monthly_gross_profit,\n",
+        "  ROUND((SUM(Sales - `Cost Of Sales`) / SUM(Sales)) * 100, 2) AS monthly_gp_pct\n",
+        "FROM\n",
+        "  bright.sales.sales_case_study_\n",
+        "GROUP BY\n",
+        "  DATE_TRUNC('month', `Date`)\n",
+        "ORDER BY\n",
+        "  month"
+      ]
+    },
+    {
+      "name": "price_elasticity",
+      "displayName": "Price Elasticity Analysis",
+      "queryLines": [
+        "-- Price elasticity of demand for 3 promotional periods\n",
+        "WITH base_metrics AS (\n",
+        "  SELECT\n",
+        "    `Date`,\n",
+        "    ROUND(Sales / `Quantity Sold`, 2) AS price_per_unit,\n",
+        "    `Quantity Sold`\n",
+        "  FROM\n",
+        "    bright.sales.sales_case_study_\n",
+        "),\n",
+        "price_stats AS (\n",
+        "  SELECT\n",
+        "    AVG(price_per_unit) AS mean_price,\n",
+        "    STDDEV(price_per_unit) AS sd_price\n",
+        "  FROM\n",
+        "    base_metrics\n",
+        "),\n",
+        "low_price_days AS (\n",
+        "  SELECT\n",
+        "    m.`Date`,\n",
+        "    m.price_per_unit,\n",
+        "    m.`Quantity Sold`\n",
+        "  FROM\n",
+        "    base_metrics m CROSS JOIN price_stats s\n",
+        "  WHERE\n",
+        "    m.price_per_unit < s.mean_price - s.sd_price\n",
+        "),\n",
+        "promo_clusters AS (\n",
+        "  WITH ranked AS (\n",
+        "    SELECT\n",
+        "      `Date`,\n",
+        "      price_per_unit,\n",
+        "      `Quantity Sold`,\n",
+        "      ROW_NUMBER() OVER (ORDER BY `Date`) AS rn\n",
+        "    FROM\n",
+        "      low_price_days\n",
+        "  ),\n",
+        "  grouped AS (\n",
+        "    SELECT\n",
+        "      *,\n",
+        "      DATE_SUB(`Date`, rn) AS grp\n",
+        "    FROM\n",
+        "      ranked\n",
+        "  )\n",
+        "  SELECT\n",
+        "    grp,\n",
+        "    MIN(`Date`) AS promo_start,\n",
+        "    MAX(`Date`) AS promo_end,\n",
+        "    COUNT(*) AS promo_days,\n",
+        "    ROUND(AVG(price_per_unit), 2) AS promo_avg_price,\n",
+        "    ROUND(AVG(`Quantity Sold`), 0) AS promo_avg_qty\n",
+        "  FROM\n",
+        "    grouped\n",
+        "  GROUP BY\n",
+        "    grp\n",
+        ")\n",
+        "SELECT\n",
+        "  promo_start,\n",
+        "  promo_end,\n",
+        "  promo_days,\n",
+        "  promo_avg_price,\n",
+        "  promo_avg_qty\n",
+        "FROM\n",
+        "  promo_clusters\n",
+        "WHERE\n",
+        "  promo_days >= 5\n",
+        "ORDER BY\n",
+        "  promo_days DESC\n",
+        "LIMIT 10"
+      ]
+    },
+    {
+      "name": "extreme_profit_days",
+      "displayName": "Extreme Profit Days",
+      "queryLines": [
+        "-- Most extreme gross-profit-% days (outlier / data-quality check)\n",
+        "SELECT\n",
+        "  `Date`,\n",
+        "  ROUND(Sales, 2) AS sales,\n",
+        "  ROUND(`Cost Of Sales`, 2) AS cost_of_sales,\n",
+        "  ROUND(`Quantity Sold`, 0) AS quantity_sold,\n",
+        "  ROUND((Sales - `Cost Of Sales`) / Sales * 100, 2) AS gross_profit_pct\n",
+        "FROM\n",
+        "  bright.sales.sales_case_study_\n",
+        "ORDER BY\n",
+        "  (Sales - `Cost Of Sales`) / Sales ASC\n",
+        "LIMIT 20"
+      ]
+    },
+    {
+      "name": "key_kpis",
+      "displayName": "Key Performance Indicators",
+      "queryLines": [
+        "-- Key business metrics\n",
+        "SELECT\n",
+        "  ROUND(SUM(Sales), 0) AS total_sales,\n",
+        "  ROUND(SUM(`Quantity Sold`), 0) AS total_units_sold,\n",
+        "  ROUND(SUM(Sales - `Cost Of Sales`), 0) AS total_gross_profit,\n",
+        "  ROUND((SUM(Sales - `Cost Of Sales`) / SUM(Sales)) * 100, 2) AS overall_gp_margin_pct,\n",
+        "  COUNT(DISTINCT `Date`) AS total_days,\n",
+        "  ROUND(SUM(Sales) / COUNT(DISTINCT `Date`), 0) AS avg_daily_sales\n",
+        "FROM\n",
+        "  bright.sales.sales_case_study_"
+      ]
+    },
+    {
+      "name": "ped_analysis",
+      "displayName": "Price Elasticity of Demand - Top 3 Promos",
+      "queryLines": [
+        "-- Price Elasticity of Demand for Top 3 Promotional Periods\n",
+        "WITH base_metrics AS (\n",
+        "  SELECT\n",
+        "    `Date`,\n",
+        "    ROUND(Sales / `Quantity Sold`, 2) AS price_per_unit,\n",
+        "    `Quantity Sold`\n",
+        "  FROM\n",
+        "    bright.sales.sales_case_study_\n",
+        "),\n",
+        "price_stats AS (\n",
+        "  SELECT\n",
+        "    AVG(price_per_unit) AS mean_price,\n",
+        "    STDDEV(price_per_unit) AS sd_price,\n",
+        "    AVG(`Quantity Sold`) AS mean_qty\n",
+        "  FROM\n",
+        "    base_metrics\n",
+        "),\n",
+        "low_price_days AS (\n",
+        "  SELECT\n",
+        "    m.`Date`,\n",
+        "    m.price_per_unit,\n",
+        "    m.`Quantity Sold`\n",
+        "  FROM\n",
+        "    base_metrics m CROSS JOIN price_stats s\n",
+        "  WHERE\n",
+        "    m.price_per_unit < s.mean_price - s.sd_price\n",
+        "),\n",
+        "promo_clusters AS (\n",
+        "  WITH ranked AS (\n",
+        "    SELECT\n",
+        "      `Date`,\n",
+        "      price_per_unit,\n",
+        "      `Quantity Sold`,\n",
+        "      ROW_NUMBER() OVER (ORDER BY `Date`) AS rn\n",
+        "    FROM\n",
+        "      low_price_days\n",
+        "  ),\n",
+        "  grouped AS (\n",
+        "    SELECT\n",
+        "      *,\n",
+        "      DATE_SUB(`Date`, rn) AS grp\n",
+        "    FROM\n",
+        "      ranked\n",
+        "  )\n",
+        "  SELECT\n",
+        "    grp,\n",
+        "    MIN(`Date`) AS promo_start,\n",
+        "    MAX(`Date`) AS promo_end,\n",
+        "    COUNT(*) AS promo_days,\n",
+        "    ROUND(AVG(price_per_unit), 2) AS promo_avg_price,\n",
+        "    ROUND(AVG(`Quantity Sold`), 0) AS promo_avg_qty\n",
+        "  FROM\n",
+        "    grouped\n",
+        "  GROUP BY\n",
+        "    grp\n",
+        "  HAVING\n",
+        "    COUNT(*) >= 5\n",
+        "),\n",
+        "top_3_promos AS (\n",
+        "  SELECT\n",
+        "    ROW_NUMBER() OVER (ORDER BY promo_days DESC) AS promo_rank,\n",
+        "    promo_start,\n",
+        "    promo_end,\n",
+        "    promo_days,\n",
+        "    promo_avg_price,\n",
+        "    promo_avg_qty\n",
+        "  FROM\n",
+        "    promo_clusters\n",
+        "  ORDER BY\n",
+        "    promo_days DESC\n",
+        "  LIMIT 3\n",
+        "),\n",
+        "baseline AS (\n",
+        "  SELECT\n",
+        "    ps.mean_price AS baseline_price,\n",
+        "    ps.mean_qty AS baseline_qty\n",
+        "  FROM\n",
+        "    price_stats ps\n",
+        ")\n",
+        "SELECT\n",
+        "  CONCAT('Period ', promo_rank) AS period_name,\n",
+        "  promo_start,\n",
+        "  promo_end,\n",
+        "  promo_days,\n",
+        "  promo_avg_price AS promo_price,\n",
+        "  promo_avg_qty AS promo_quantity,\n",
+        "  baseline_price,\n",
+        "  baseline_qty AS baseline_quantity,\n",
+        "  ROUND(((promo_avg_qty - baseline_qty) / baseline_qty) * 100, 2) AS pct_change_qty,\n",
+        "  ROUND(((promo_avg_price - baseline_price) / baseline_price) * 100, 2) AS pct_change_price,\n",
+        "  ROUND(\n",
+        "    (((promo_avg_qty - baseline_qty) / baseline_qty) * 100)\n",
+        "      / (((promo_avg_price - baseline_price) / baseline_price) * 100),\n",
+        "    2\n",
+        "  ) AS price_elasticity_of_demand,\n",
+        "  CASE\n",
+        "    WHEN\n",
+        "      (((promo_avg_qty - baseline_qty) / baseline_qty) * 100)\n",
+        "        / (((promo_avg_price - baseline_price) / baseline_price) * 100) < -1\n",
+        "    THEN\n",
+        "      'Elastic (Responsive to price cuts)'\n",
+        "    WHEN\n",
+        "      (((promo_avg_qty - baseline_qty) / baseline_qty) * 100)\n",
+        "        / (((promo_avg_price - baseline_price) / baseline_price) * 100) BETWEEN -1 AND 0\n",
+        "    THEN\n",
+        "      'Inelastic (Less responsive)'\n",
+        "    ELSE 'Positive (Unexpected)'\n",
+        "  END AS elasticity_interpretation\n",
+        "FROM\n",
+        "  top_3_promos CROSS JOIN baseline\n",
+        "ORDER BY\n",
+        "  promo_rank"
+      ]
+    },
+    {
+      "name": "day_of_week_analysis",
+      "displayName": "Day of Week Seasonality",
+      "queryLines": [
+        "-- Day-of-week seasonality analysis\n",
+        "SELECT\n",
+        "  DATE_FORMAT(`Date`, 'EEEE') AS day_of_week,\n",
+        "  ROUND(AVG(`Quantity Sold`), 0) AS avg_qty_sold,\n",
+        "  ROUND(AVG(Sales / `Quantity Sold`), 2) AS avg_price_per_unit,\n",
+        "  ROUND(AVG(Sales), 0) AS avg_daily_sales,\n",
+        "  CASE DATE_FORMAT(`Date`, 'EEEE')\n",
+        "    WHEN 'Monday' THEN 1\n",
+        "    WHEN 'Tuesday' THEN 2\n",
+        "    WHEN 'Wednesday' THEN 3\n",
+        "    WHEN 'Thursday' THEN 4\n",
+        "    WHEN 'Friday' THEN 5\n",
+        "    WHEN 'Saturday' THEN 6\n",
+        "    WHEN 'Sunday' THEN 7\n",
+        "  END AS day_order\n",
+        "FROM\n",
+        "  bright.sales.sales_case_study_\n",
+        "GROUP BY\n",
+        "  DATE_FORMAT(`Date`, 'EEEE'),\n",
+        "  CASE DATE_FORMAT(`Date`, 'EEEE')\n",
+        "    WHEN 'Monday' THEN 1\n",
+        "    WHEN 'Tuesday' THEN 2\n",
+        "    WHEN 'Wednesday' THEN 3\n",
+        "    WHEN 'Thursday' THEN 4\n",
+        "    WHEN 'Friday' THEN 5\n",
+        "    WHEN 'Saturday' THEN 6\n",
+        "    WHEN 'Sunday' THEN 7\n",
+        "  END\n",
+        "ORDER BY\n",
+        "  day_order"
+      ]
+    },
+    {
+      "name": "yoy_comparison",
+      "displayName": "Year-over-Year Comparison",
+      "queryLines": [
+        "-- Year-over-year performance metrics\n",
+        "WITH yearly_summary AS (\n",
+        "  SELECT\n",
+        "    YEAR(`Date`) AS year,\n",
+        "    COUNT(*) AS trading_days,\n",
+        "    ROUND(SUM(Sales), 0) AS total_sales,\n",
+        "    ROUND(SUM(`Cost Of Sales`), 0) AS total_cost,\n",
+        "    ROUND(SUM(`Quantity Sold`), 0) AS total_qty,\n",
+        "    ROUND(SUM(Sales - `Cost Of Sales`), 0) AS total_gp,\n",
+        "    ROUND((SUM(Sales - `Cost Of Sales`) / SUM(Sales)) * 100, 2) AS gp_pct,\n",
+        "    ROUND(SUM(Sales) / COUNT(*), 0) AS avg_daily_sales,\n",
+        "    ROUND(SUM(`Quantity Sold`) / COUNT(*), 0) AS avg_daily_qty\n",
+        "  FROM\n",
+        "    bright.sales.sales_case_study_\n",
+        "  GROUP BY\n",
+        "    YEAR(`Date`)\n",
+        ")\n",
+        "SELECT\n",
+        "  year,\n",
+        "  trading_days,\n",
+        "  total_sales,\n",
+        "  total_qty,\n",
+        "  total_gp,\n",
+        "  gp_pct,\n",
+        "  avg_daily_sales,\n",
+        "  avg_daily_qty,\n",
+        "  ROUND(\n",
+        "    (\n",
+        "      (avg_daily_sales - LAG(avg_daily_sales) OVER (ORDER BY year))\n",
+        "        / LAG(avg_daily_sales) OVER (ORDER BY year)\n",
+        "    )\n",
+        "      * 100,\n",
+        "    2\n",
+        "  ) AS yoy_pct_change_daily_sales,\n",
+        "  ROUND((gp_pct - LAG(gp_pct) OVER (ORDER BY year)), 2) AS yoy_change_gp_pct_points\n",
+        "FROM\n",
+        "  yearly_summary\n",
+        "ORDER BY\n",
+        "  year"
+      ]
+    },
+    {
+      "name": "filter_dates",
+      "displayName": "Date Filter Options",
+      "queryLines": [
+        "-- Date range for filters\n",
+        "SELECT DISTINCT\n",
+        "  `Date`,\n",
+        "  YEAR(`Date`) AS year\n",
+        "FROM\n",
+        "  bright.sales.sales_case_study_\n",
+        "ORDER BY\n",
+        "  `Date`"
+      ]
+    },
+    {
+      "name": "promo_vs_baseline",
+      "displayName": "Promo vs Baseline Performance",
+      "queryLines": [
+        "-- Promotional vs baseline performance comparison\n",
+        "WITH base_metrics AS (\n",
+        "  SELECT\n",
+        "    `Date`,\n",
+        "    Sales,\n",
+        "    `Quantity Sold`,\n",
+        "    ROUND(Sales / `Quantity Sold`, 2) AS price_per_unit,\n",
+        "    ROUND(Sales - `Cost Of Sales`, 2) AS gross_profit\n",
+        "  FROM\n",
+        "    bright.sales.sales_case_study_\n",
+        "),\n",
+        "price_stats AS (\n",
+        "  SELECT\n",
+        "    AVG(price_per_unit) AS mean_price,\n",
+        "    STDDEV(price_per_unit) AS sd_price\n",
+        "  FROM\n",
+        "    base_metrics\n",
+        "),\n",
+        "classified AS (\n",
+        "  SELECT\n",
+        "    m.*,\n",
+        "    CASE\n",
+        "      WHEN m.price_per_unit < s.mean_price - s.sd_price THEN 'Promotional'\n",
+        "      ELSE 'Baseline'\n",
+        "    END AS period_type\n",
+        "  FROM\n",
+        "    base_metrics m CROSS JOIN price_stats s\n",
+        ")\n",
+        "SELECT\n",
+        "  period_type,\n",
+        "  COUNT(*) AS days,\n",
+        "  ROUND(AVG(Sales), 0) AS avg_sales,\n",
+        "  ROUND(AVG(`Quantity Sold`), 0) AS avg_quantity,\n",
+        "  ROUND(AVG(price_per_unit), 2) AS avg_price,\n",
+        "  ROUND(AVG(gross_profit), 0) AS avg_gross_profit,\n",
+        "  ROUND(SUM(Sales), 0) AS total_sales,\n",
+        "  ROUND(SUM(`Quantity Sold`), 0) AS total_quantity\n",
+        "FROM\n",
+        "  classified\n",
+        "GROUP BY\n",
+        "  period_type\n",
+        "ORDER BY\n",
+        "  period_type DESC"
+      ]
+    },
+    {
+      "name": "quantity_trend",
+      "displayName": "Quantity Sold Trends",
+      "queryLines": [
+        "-- Daily and monthly quantity trends\n",
+        "SELECT\n",
+        "  `Date`,\n",
+        "  `Quantity Sold`,\n",
+        "  DATE_TRUNC('month', `Date`) AS month,\n",
+        "  ROUND(\n",
+        "    AVG(`Quantity Sold`) OVER (ORDER BY `Date` ROWS BETWEEN 6 PRECEDING AND CURRENT ROW),\n",
+        "    0\n",
+        "  ) AS qty_7day_ma\n",
+        "FROM\n",
+        "  bright.sales.sales_case_study_\n",
+        "ORDER BY\n",
+        "  `Date`"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "8374cf76",
+      "displayName": "FNB Sales Case Study",
+      "layout": [
+        {
+          "widget": {
+            "name": "0d06408b",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "a11e159f",
+                  "fields": [
+                    {
+                      "name": "Date",
+                      "expression": "`Date`"
+                    },
+                    {
+                      "name": "price_per_unit",
+                      "expression": "`price_per_unit`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "frame": {
+                "title": "Daily Price Trend",
+                "showTitle": true,
+                "description": "This line chart tracks the daily average price per unit over time. Sharp downward spikes indicate promotional pricing periods where prices dropped significantly below the baseline (~R35.40 average). The recurring pattern of price dips reveals a systematic promotional strategy, with most promotions lasting 5-14 days. Notice how prices consistently recover to the R34-35 range between promotional periods, suggesting a stable baseline pricing strategy outside of campaigns.",
+                "showDescription": true
+              },
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "Date",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fieldName": "price_per_unit",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 62,
+            "width": 6,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "99928884",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "gross_profit_metrics",
+                  "fields": [
+                    {
+                      "name": "Date",
+                      "expression": "`Date`"
+                    },
+                    {
+                      "name": "gross_profit_pct",
+                      "expression": "`gross_profit_pct`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "frame": {
+                "title": "Daily Gross Profit %",
+                "showTitle": true,
+                "description": "This chart reveals a critical profitability crisis: gross profit margin fluctuates between -15% and +4%, meaning costs exceed revenue on most days. The pattern shows that promotional periods (price drops) correlate with the deepest negative margins, suggesting promotions sacrifice profitability for volume. The rare positive spikes above 0% represent the few days where pricing and cost structure aligned favorably. This negative margin trend demands immediate cost structure review or pricing strategy revision.",
+                "showDescription": true
+              },
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "Date",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fieldName": "gross_profit_pct",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 62,
+            "width": 6,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "7de71a4b",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "price_elasticity",
+                  "fields": [
+                    {
+                      "name": "promo_start",
+                      "expression": "`promo_start`"
+                    },
+                    {
+                      "name": "promo_end",
+                      "expression": "`promo_end`"
+                    },
+                    {
+                      "name": "promo_days",
+                      "expression": "`promo_days`"
+                    },
+                    {
+                      "name": "promo_avg_price",
+                      "expression": "`promo_avg_price`"
+                    },
+                    {
+                      "name": "promo_avg_qty",
+                      "expression": "`promo_avg_qty`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "title": "Promotional Campaigns Summary",
+                "showTitle": true,
+                "description": "This table lists all detected promotional campaigns (5+ consecutive days with prices below mean minus one standard deviation). Each row represents a distinct promotional period with its start/end dates, duration, average promotional pricing, and average daily quantity sold. The longest campaigns (14 days) delivered the highest volumes, suggesting extended promotional windows maximize market penetration. Use this to identify which promotional patterns (duration, pricing depth) correlate with peak volume performance.",
+                "showDescription": true
+              },
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "promo_start"
+                  },
+                  {
+                    "fieldName": "promo_end"
+                  },
+                  {
+                    "fieldName": "promo_days"
+                  },
+                  {
+                    "fieldName": "promo_avg_price"
+                  },
+                  {
+                    "fieldName": "promo_avg_qty"
+                  }
+                ]
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 44,
+            "width": 6,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "801ac95a",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "annual_metrics",
+                  "fields": [
+                    {
+                      "name": "year",
+                      "expression": "`year`"
+                    },
+                    {
+                      "name": "annual_gross_profit",
+                      "expression": "`annual_gross_profit`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "frame": {
+                "title": "Annual Gross Profit",
+                "showTitle": true,
+                "description": "This chart shows annual gross profit (total revenue minus cost of sales) across three years. All bars extend into negative territory, confirming the business operated at a loss throughout the entire period. 2014 had the smallest loss at -R1.8M, while 2015 suffered the worst loss at -R3.9M. The pattern indicates a structural cost problem: costs consistently exceed revenue regardless of sales volume. This is not a seasonal or temporary issue - it's a fundamental business model challenge requiring immediate attention to supplier costs, pricing strategy, or operational efficiency.",
+                "showDescription": true
+              },
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "year",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "fieldName": "annual_gross_profit",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 18,
+            "width": 6,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "429e7865",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "monthly_trends",
+                  "fields": [
+                    {
+                      "name": "month",
+                      "expression": "`month`"
+                    },
+                    {
+                      "name": "monthly_sales",
+                      "expression": "`monthly_sales`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "frame": {
+                "title": "Monthly Sales",
+                "showTitle": true,
+                "description": "This bar chart displays total sales revenue by month from 2014-2016, revealing a concerning downward trend. Sales peaked in early 2014 at R8-9M per month but steadily declined to R5-6M by 2016 - a 35-40% revenue drop over the period. The cyclical pattern within each year shows strong Q1 performance followed by mid-year dips, suggesting potential seasonal factors or competitive dynamics. The declining trajectory indicates market share loss, reduced customer demand, or pricing pressure that requires strategic intervention.",
+                "showDescription": true
+              },
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "month",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fieldName": "monthly_sales",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 18,
+            "width": 6,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "cda207bc",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "extreme_profit_days",
+                  "fields": [
+                    {
+                      "name": "Date",
+                      "expression": "`Date`"
+                    },
+                    {
+                      "name": "sales",
+                      "expression": "`sales`"
+                    },
+                    {
+                      "name": "gross_profit_pct",
+                      "expression": "`gross_profit_pct`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "title": "Days with Lowest Gross Profit Margins",
+                "showTitle": true,
+                "description": "This table identifies the 20 worst profitability days (sorted by gross profit % ascending). Most entries cluster in late 2015, with margins as low as -15.4%, meaning costs were 15% higher than selling prices on those days. These outliers may indicate data quality issues, supplier cost spikes, aggressive promotional pricing without cost negotiation, or pricing errors. Investigate each entry to determine root cause - if systemic, address cost structure; if isolated, check for data entry or pricing mistakes.",
+                "showDescription": true
+              },
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "Date"
+                  },
+                  {
+                    "fieldName": "sales"
+                  },
+                  {
+                    "fieldName": "gross_profit_pct"
+                  }
+                ]
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 53,
+            "width": 12,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "66c50bf2",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "price_elasticity",
+                  "fields": [
+                    {
+                      "name": "promo_start",
+                      "expression": "`promo_start`"
+                    },
+                    {
+                      "name": "promo_avg_qty",
+                      "expression": "`promo_avg_qty`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "frame": {
+                "title": "Promotional Volume Impact",
+                "showTitle": true,
+                "description": "This chart shows the average daily quantity sold during each promotional period. The bars represent major promotional campaigns where prices were reduced below the statistical threshold (mean price minus one standard deviation). Taller bars indicate higher sales volume during that promotional period. The data demonstrates that promotional pricing consistently drives significant volume increases - averaging 8,800-10,900 units per day during promos compared to the baseline of ~5,014 units per day. The three tallest periods (Sep 2014, Sep 2015, and Jun 2016) represent the most effective promotional campaigns, each generating 76%-117% volume uplift.",
+                "showDescription": true
+              },
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "promo_start",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fieldName": "promo_avg_qty",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 44,
+            "width": 6,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "header_title",
+            "multilineTextboxSpec": {
+              "lines": [
+                "# 📊 FNB Sales Analytics Dashboard\n",
+                "\n",
+                "**Executive analysis of sales performance, pricing dynamics, and promotional ROI** · *2013-2016* · ⚠️ **Critical: Operating at negative margin (-3.58%)**"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 12,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "kpi_total_sales",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "key_kpis",
+                  "fields": [
+                    {
+                      "name": "total_sales",
+                      "expression": "`total_sales`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Total Sales (R)",
+                "showTitle": true
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "total_sales"
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 4,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "kpi_gross_profit",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "key_kpis",
+                  "fields": [
+                    {
+                      "name": "total_gross_profit",
+                      "expression": "`total_gross_profit`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Gross Profit (R)",
+                "showTitle": true
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "total_gross_profit"
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 2,
+            "width": 4,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "kpi_gp_margin",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "key_kpis",
+                  "fields": [
+                    {
+                      "name": "overall_gp_margin_pct",
+                      "expression": "`overall_gp_margin_pct`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "GP Margin %",
+                "showTitle": true
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "overall_gp_margin_pct"
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 8,
+            "y": 2,
+            "width": 4,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "kpi_units_sold",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "key_kpis",
+                  "fields": [
+                    {
+                      "name": "total_units_sold",
+                      "expression": "`total_units_sold`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Total Units Sold",
+                "showTitle": true
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "total_units_sold"
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 6,
+            "width": 4,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "kpi_avg_price",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "average_price",
+                  "fields": [
+                    {
+                      "name": "avg_unit_sales_price",
+                      "expression": "`avg_unit_sales_price`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Avg Unit Price (R)",
+                "showTitle": true
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "avg_unit_sales_price"
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 6,
+            "width": 4,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "kpi_avg_daily_sales",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "key_kpis",
+                  "fields": [
+                    {
+                      "name": "avg_daily_sales",
+                      "expression": "`avg_daily_sales`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Avg Daily Sales (R)",
+                "showTitle": true
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "avg_daily_sales"
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 8,
+            "y": 6,
+            "width": 4,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "section_trends",
+            "multilineTextboxSpec": {
+              "lines": [
+                "## 📈 Price & Profit Trends"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 60,
+            "width": 12,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "section_performance",
+            "multilineTextboxSpec": {
+              "lines": [
+                "## 📊 Monthly & Annual Performance"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 16,
+            "width": 12,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "section_promo",
+            "multilineTextboxSpec": {
+              "lines": [
+                "## 🎯 Promotional Campaigns & Price Elasticity"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 34,
+            "width": 12,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "section_quality",
+            "multilineTextboxSpec": {
+              "lines": [
+                "## ⚠️ Data Quality & Outlier Analysis"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 51,
+            "width": 12,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "ped_table",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ped_analysis",
+                  "fields": [
+                    {
+                      "name": "period_name",
+                      "expression": "`period_name`"
+                    },
+                    {
+                      "name": "promo_start",
+                      "expression": "`promo_start`"
+                    },
+                    {
+                      "name": "promo_end",
+                      "expression": "`promo_end`"
+                    },
+                    {
+                      "name": "promo_days",
+                      "expression": "`promo_days`"
+                    },
+                    {
+                      "name": "promo_price",
+                      "expression": "`promo_price`"
+                    },
+                    {
+                      "name": "baseline_price",
+                      "expression": "`baseline_price`"
+                    },
+                    {
+                      "name": "pct_change_price",
+                      "expression": "`pct_change_price`"
+                    },
+                    {
+                      "name": "promo_quantity",
+                      "expression": "`promo_quantity`"
+                    },
+                    {
+                      "name": "baseline_quantity",
+                      "expression": "`baseline_quantity`"
+                    },
+                    {
+                      "name": "pct_change_qty",
+                      "expression": "`pct_change_qty`"
+                    },
+                    {
+                      "name": "price_elasticity_of_demand",
+                      "expression": "`price_elasticity_of_demand`"
+                    },
+                    {
+                      "name": "elasticity_interpretation",
+                      "expression": "`elasticity_interpretation`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "title": "Price Elasticity of Demand - Top 3 Promotional Periods",
+                "showTitle": true,
+                "description": "This table quantifies customer price sensitivity for the three longest promotional campaigns. Price Elasticity of Demand (PED) measures how much quantity demanded changes in response to a 1% price change. All three periods show PED values between -5.89 and -8.38, meaning demand is 'highly elastic': a 1% price cut generates 5.9%-8.4% volume increase. Period 2 (Sep 2015) achieved the strongest response: a 14% price reduction drove 117% volume uplift (8.38× multiplier). This extreme elasticity confirms price is the primary purchase driver - customers are waiting for promotions to buy. Strategic implication: the product competes primarily on price, not brand loyalty or differentiation.",
+                "showDescription": true
+              },
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "period_name"
+                  },
+                  {
+                    "fieldName": "promo_start"
+                  },
+                  {
+                    "fieldName": "promo_end"
+                  },
+                  {
+                    "fieldName": "promo_days"
+                  },
+                  {
+                    "fieldName": "promo_price"
+                  },
+                  {
+                    "fieldName": "baseline_price"
+                  },
+                  {
+                    "fieldName": "pct_change_price"
+                  },
+                  {
+                    "fieldName": "promo_quantity"
+                  },
+                  {
+                    "fieldName": "baseline_quantity"
+                  },
+                  {
+                    "fieldName": "pct_change_qty"
+                  },
+                  {
+                    "fieldName": "price_elasticity_of_demand"
+                  },
+                  {
+                    "fieldName": "elasticity_interpretation"
+                  }
+                ]
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 36,
+            "width": 12,
+            "height": 8
+          }
+        },
+        {
+          "widget": {
+            "name": "filter_date_range",
+            "queries": [
+              {
+                "name": "dashboards/01f18b51ec271049b74790d98fed7adc/datasets/01f18c1cc6d81a188cb97de0e61309b5_Date",
+                "query": {
+                  "datasetName": "filter_dates",
+                  "fields": [
+                    {
+                      "name": "Date",
+                      "expression": "`Date`"
+                    },
+                    {
+                      "name": "Date_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Date Range",
+                "showTitle": true
+              },
+              "widgetType": "filter-date-range-picker",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "Date",
+                    "queryName": "dashboards/01f18b51ec271049b74790d98fed7adc/datasets/01f18c1cc6d81a188cb97de0e61309b5_Date"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 12,
+            "width": 6,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "filter_year",
+            "queries": [
+              {
+                "name": "dashboards/01f18b51ec271049b74790d98fed7adc/datasets/01f18c1cc6d81a188cb97de0e61309b5_year",
+                "query": {
+                  "datasetName": "filter_dates",
+                  "fields": [
+                    {
+                      "name": "year",
+                      "expression": "`year`"
+                    },
+                    {
+                      "name": "year_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Year",
+                "showTitle": true
+              },
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "year",
+                    "queryName": "dashboards/01f18b51ec271049b74790d98fed7adc/datasets/01f18c1cc6d81a188cb97de0e61309b5_year"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 12,
+            "width": 6,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "day_of_week_chart",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "day_of_week_analysis",
+                  "fields": [
+                    {
+                      "name": "day_of_week",
+                      "expression": "`day_of_week`"
+                    },
+                    {
+                      "name": "sum(avg_qty_sold)",
+                      "expression": "SUM(`avg_qty_sold`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "title": "Weekly Sales Pattern - Avg Quantity by Day of Week",
+                "showTitle": true,
+                "description": "This chart reveals clear weekly seasonality: Saturday is the peak sales day (averaging 7,937 units), followed closely by Friday (7,463 units). These two days generate nearly double the volume of weekdays (Monday-Thursday average ~4,300 units). Sunday shows mid-range performance (5,533 units). For operational planning: staff/inventory should peak on Fri-Sat; promotional campaigns launched Thursday/Friday will capture the weekend surge. The consistent pattern suggests consumer shopping habits, not random variation.",
+                "showDescription": true
+              },
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "day_of_week",
+                  "displayName": "day_of_week",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "fieldName": "sum(avg_qty_sold)",
+                  "displayName": "avg_qty_sold",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "day_of_week",
+                  "displayName": "day_of_week",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 27,
+            "width": 6,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "day_sales_chart",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "day_of_week_analysis",
+                  "fields": [
+                    {
+                      "name": "day_of_week",
+                      "expression": "`day_of_week`"
+                    },
+                    {
+                      "name": "sum(avg_daily_sales)",
+                      "expression": "SUM(`avg_daily_sales`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "title": "Avg Daily Sales by Day of Week",
+                "showTitle": true,
+                "description": "This chart shows average revenue by day of week, mirroring the volume pattern: Saturday generates the highest revenue (R271K avg), followed by Friday (R255K). Weekdays (Mon-Thu) average R146-153K, while Sunday sits at R189K. The revenue:volume ratio is consistent across days (~R34/unit), confirming pricing strategy doesn't vary by day - the revenue lift comes purely from higher weekend traffic. To maximize revenue: concentrate high-margin product promotions on Fri-Sat when customer volume is highest.",
+                "showDescription": true
+              },
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "day_of_week",
+                  "displayName": "day_of_week",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "fieldName": "sum(avg_daily_sales)",
+                  "displayName": "avg_daily_sales",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "day_of_week",
+                  "displayName": "day_of_week",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 27,
+            "width": 6,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "yoy_sales_chart",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "yoy_comparison",
+                  "fields": [
+                    {
+                      "name": "year",
+                      "expression": "`year`"
+                    },
+                    {
+                      "name": "sum(total_sales)",
+                      "expression": "SUM(`total_sales`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "title": "Year-over-Year Sales Comparison",
+                "showTitle": true,
+                "description": "This chart visualizes the dramatic revenue decline over three years: 2014 generated R75.4M, 2015 dropped to R64.0M (-15.1%), and 2016 plummeted to R47.0M (-26.7% YoY). The cumulative decline of 37.7% from peak to trough signals severe market challenges - potential causes include intensified competition, market saturation, customer attrition, or product lifecycle maturity. This trend is unsustainable and requires strategic intervention: market research to understand customer loss, competitive analysis, product refresh, or pricing repositioning.",
+                "showDescription": true
+              },
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "year",
+                  "displayName": "year",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "fieldName": "sum(total_sales)",
+                  "displayName": "total_sales",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "year",
+                  "displayName": "year",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 69,
+            "width": 6,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "yoy_gp_chart",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "yoy_comparison",
+                  "fields": [
+                    {
+                      "name": "year",
+                      "expression": "`year`"
+                    },
+                    {
+                      "name": "sum(gp_pct)",
+                      "expression": "SUM(`gp_pct`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "title": "Year-over-Year GP% Trend",
+                "showTitle": true,
+                "description": "This line chart exposes the worsening profitability crisis: 2014 posted a -2.4% margin, 2015 deteriorated to -6.1% (the worst year), and 2016 showed marginal improvement to -1.5% but remained deeply negative. The pattern reveals costs consistently outpacing revenue - not a temporary squeeze but a fundamental structural imbalance. The slight 2016 recovery suggests cost control efforts or pricing adjustments had some impact, but positive margins remain elusive. Urgent action required: renegotiate supplier contracts, eliminate cost inefficiencies, or increase baseline pricing by 5-10%.",
+                "showDescription": true
+              },
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "year",
+                  "displayName": "year",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "fieldName": "sum(gp_pct)",
+                  "displayName": "gp_pct",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "year",
+                  "displayName": "year",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 69,
+            "width": 6,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "quantity_trend_chart",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "quantity_trend",
+                  "fields": [
+                    {
+                      "name": "Date",
+                      "expression": "`Date`"
+                    },
+                    {
+                      "name": "sum(qty_7day_ma)",
+                      "expression": "SUM(`qty_7day_ma`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "title": "Daily Quantity Sold Trend (with 7-Day MA)",
+                "showTitle": true,
+                "description": "This smoothed trend line (7-day moving average) filters out daily volatility to reveal the underlying volume trajectory. The pattern shows volume declining from ~6,000 units/day in early 2014 to ~4,000 units/day by mid-2016 - a 33% drop in baseline demand. Promotional spikes (the sharp upward surges) temporarily boost volume to 10,000-12,000 units/day, but the declining baseline between promotions indicates customer base erosion. The smoothing also shows volume became more volatile (wider swings) in 2015-2016, suggesting destabilizing market conditions or inconsistent promotional cadence.",
+                "showDescription": true
+              },
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "Date",
+                  "displayName": "Date",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "fieldName": "sum(qty_7day_ma)",
+                  "displayName": "qty_7day_ma",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "Date",
+                  "displayName": "Date",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 80,
+            "width": 12,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "promo_comparison_chart",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "promo_vs_baseline",
+                  "fields": [
+                    {
+                      "name": "period_type",
+                      "expression": "`period_type`"
+                    },
+                    {
+                      "name": "sum(avg_quantity)",
+                      "expression": "SUM(`avg_quantity`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "title": "Promotional vs Baseline Performance",
+                "showTitle": true,
+                "description": "This side-by-side comparison starkly illustrates promotional effectiveness: promotional days average 9,547 units/day versus baseline days at 4,468 units/day - a 114% volume uplift. The product exhibits extreme price sensitivity: even modest price cuts double demand. However, note that promotional days represent only 19% of total trading days (202 out of 1,053), meaning the business relies on baseline performance 81% of the time. To grow: increase promotional frequency (currently ~1 week per month) or improve baseline appeal through product differentiation, marketing, or value-added services.",
+                "showDescription": true
+              },
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "period_type",
+                  "displayName": "period_type",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "fieldName": "sum(avg_quantity)",
+                  "displayName": "avg_quantity",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "period_type",
+                  "displayName": "period_type",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 87,
+            "width": 6,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "promo_sales_comparison",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "promo_vs_baseline",
+                  "fields": [
+                    {
+                      "name": "period_type",
+                      "expression": "`period_type`"
+                    },
+                    {
+                      "name": "sum(avg_sales)",
+                      "expression": "SUM(`avg_sales`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "title": "Promotional vs Baseline Avg Daily Sales",
+                "showTitle": true,
+                "description": "Revenue comparison mirrors volume: promotional days generate R307K avg versus baseline R158K - a 94% revenue increase. Critically, while promotional volume doubles (+114%), revenue only increases +94%, because lower prices sacrifice margin for volume. The math: promotional price averages R32.17/unit vs baseline R35.38/unit, a 9% price discount that generates 114% more volume. The positive news: total revenue still increases significantly during promos despite lower unit prices, confirming promotions are revenue-accretive. But profitability remains the unresolved question - check GP% during promos.",
+                "showDescription": true
+              },
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "period_type",
+                  "displayName": "period_type",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "fieldName": "sum(avg_sales)",
+                  "displayName": "avg_sales",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "period_type",
+                  "displayName": "period_type",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 87,
+            "width": 6,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "executive_summary",
+            "multilineTextboxSpec": {
+              "lines": [
+                "## 🚨 CRITICAL FINDINGS & STRATEGIC RECOMMENDATIONS\n",
+                "\n",
+                "### ⚠️ **URGENT: Negative Gross Profit Crisis**\n",
+                "**Current GP Margin: -3.58%** | The product is being sold at a **loss** — costs exceed revenue across the entire period.\n",
+                "\n",
+                "#### Root Cause Analysis:\n",
+                "* **2013-2016 Loss Pattern**: All years show negative margins (-2.4% to -6.1%)\n",
+                "* **Worst Period**: 2015 had the steepest loss at **-6.09% GP margin**\n",
+                "* **Extreme Days**: Late 2015 saw margins as low as **-15%** (costs 15% higher than sales prices)\n",
+                "\n",
+                "---\n",
+                "\n",
+                "### 💡 **Key Opportunity: Promotional Strategy is Highly Effective**\n",
+                "\n",
+                "**Price Elasticity Evidence**:\n",
+                "* **Period 1**: 13% price cut → **76% volume increase** (PED: -5.89)\n",
+                "* **Period 2**: 14% price cut → **117% volume increase** (PED: -8.38)\n",
+                "* **Period 3**: 13% price cut → **108% volume increase** (PED: -8.22)\n",
+                "\n",
+                "**Business Impact**:\n",
+                "✅ Promotional days average **8,800-10,900 units/day**  \n",
+                "📊 Baseline (non-promo) days average only **5,014 units/day**  \n",
+                "📈 **Promotional uplift: +76% to +117%** volume increase\n",
+                "\n",
+                "---\n",
+                "\n",
+                "### 📋 **IMMEDIATE ACTION ITEMS**\n",
+                "\n",
+                "#### 1. **Fix Cost Structure (Priority #1)**\n",
+                "* ❗ Investigate why Cost of Sales exceeds revenue\n",
+                "* Review supplier contracts and negotiate better terms\n",
+                "* Conduct product cost audit to identify inefficiencies\n",
+                "* **Target**: Achieve positive GP margin within 90 days\n",
+                "\n",
+                "#### 2. **Pricing Strategy Review**\n",
+                "* Current avg price: R35.40/unit may be too low given costs\n",
+                "* Consider **strategic price increase** of 10-15% on baseline (non-promo) days\n",
+                "* Maintain promotional pricing since it drives massive volume\n",
+                "\n",
+                "#### 3. **Optimize Promotional Calendar**\n",
+                "* **Weekly Pattern**: Saturday/Friday are peak days (2x weekday volume)\n",
+                "* Schedule major promotions on **Fri-Sat** to maximize impact\n",
+                "* Increase promotional frequency — product shows extreme price sensitivity\n",
+                "* Test deeper discounts to drive even higher volumes\n",
+                "\n",
+                "#### 4. **Year-over-Year Decline**\n",
+                "* Sales dropped **-15.1%** from 2014→2015, **-26.7%** from 2015→2016\n",
+                "* Volume declining: from 6,176 units/day (2014) to 4,033 units/day (2016)\n",
+                "* Investigate market factors, competition, or product lifecycle stage\n",
+                "\n",
+                "---\n",
+                "\n",
+                "### 📊 **Dashboard Filters & Navigation**\n",
+                "\n",
+                "Use the **Date Range** and **Year** filters below to drill into specific time periods. Scroll down for detailed weekly patterns, year-over-year trends, and promotional analysis."
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 94,
+            "width": 12,
+            "height": 17
+          }
+        },
+        {
+          "widget": {
+            "name": "section_weekly",
+            "multilineTextboxSpec": {
+              "lines": [
+                "## 📅 Weekly Sales Patterns\n",
+                "\n",
+                "**Key Finding:** Saturday and Friday are peak sales days, with volume **2x higher** than weekdays. Optimize promotional campaigns and inventory planning around these weekly patterns."
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 25,
+            "width": 12,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "section_filters",
+            "multilineTextboxSpec": {
+              "lines": [
+                "## 🔍 Dashboard Filters\n",
+                "\n",
+                "Use these filters to focus your analysis on specific time periods. All charts and tables on this dashboard will automatically update based on your selections."
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 10,
+            "width": 12,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "yoy_change_counter",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "yoy_comparison",
+                  "fields": [
+                    {
+                      "name": "count(yoy_pct_change_daily_sales)",
+                      "expression": "COUNT(`yoy_pct_change_daily_sales`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "YoY Sales Change %",
+                "showTitle": true
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "count(yoy_pct_change_daily_sales)",
+                  "rowNumber": 0
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 76,
+            "width": 4,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "avg_daily_qty_counter",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "yoy_comparison",
+                  "fields": [
+                    {
+                      "name": "count(avg_daily_qty)",
+                      "expression": "COUNT(`avg_daily_qty`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Avg Daily Qty (Units)",
+                "showTitle": true
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "count(avg_daily_qty)",
+                  "rowNumber": 0
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 76,
+            "width": 4,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "trading_days_counter",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "yoy_comparison",
+                  "fields": [
+                    {
+                      "name": "count(trading_days)",
+                      "expression": "COUNT(`trading_days`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Trading Days Count",
+                "showTitle": true
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "count(trading_days)",
+                  "rowNumber": 0
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 8,
+            "y": 76,
+            "width": 4,
+            "height": 4
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layoutVersion": "GRID_V1"
+    }
+  ],
+  "uiSettings": {
+    "theme": {
+      "canvasBackgroundColor": {
+        "light": "#FFFFFF",
+        "dark": "#1E1E1E"
+      },
+      "widgetBackgroundColor": {
+        "light": "#FFFFFF",
+        "dark": "#2D2D2D"
+      },
+      "widgetBorderColor": {
+        "light": "#E1E8ED",
+        "dark": "#404040"
+      },
+      "selectionColor": {
+        "light": "#1E88E5",
+        "dark": "#42A5F5"
+      },
+      "visualizationColors": [
+        "#1E88E5",
+        "#43A047",
+        "#FB8C00",
+        "#E53935",
+        "#8E24AA",
+        "#00ACC1",
+        "#FDD835",
+        "#5E35B1",
+        "#00897B",
+        "#F4511E"
+      ],
+      "widgetHeaderAlignment": "LEFT",
+      "widgetPadding": 16,
+      "widgetMargin": 8,
+      "widgetCornerRadius": 8,
+      "widgetShadow": 10,
+      "fontSettings": {
+        "base": {
+          "fontFamily": "Inter",
+          "fontColor": {
+            "light": "#212121",
+            "dark": "#E0E0E0"
+          },
+          "fontSize": 14
+        },
+        "widgetTitle": {
+          "fontFamily": "Inter",
+          "fontColor": {
+            "light": "#1A237E",
+            "dark": "#90CAF9"
+          },
+          "fontSize": 16,
+          "fontWeight": 600
+        },
+        "fieldTitle": {
+          "fontFamily": "Inter",
+          "textCase": "TEXT_CASE_UPPERCASE",
+          "fontColor": {
+            "light": "#616161",
+            "dark": "#B0B0B0"
+          },
+          "fontSize": 12,
+          "fontWeight": 500
+        },
+        "fieldValue": {
+          "fontFamily": "Inter",
+          "fontSize": 14,
+          "fontWeight": 400
+        }
+      },
+      "gridLineColor": {
+        "light": "#E8EEF2",
+        "dark": "#3A3A3A"
+      }
+    },
+    "applyModeEnabled": false
+  }
+}
